@@ -24,7 +24,6 @@ type Club struct {
 
 func (c *Club) clientLeave(clientName string, leavingTime time.Time) int {
 	curTable := -1
-
 	for key, ticket := range c.tableOccupancy {
 		if ticket.name == clientName {
 			curTable = key
