@@ -7,7 +7,7 @@
 ```bash
 docker run -it my_container
 ```
-3. Запуск приложения с переданным ему файлом "test.txt" 
+3. Запуск приложения из контейнера с указанием файла "test.txt" 
 ```bash
 ./task test.txt
 ```
