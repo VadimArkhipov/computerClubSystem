@@ -1,0 +1,14 @@
+3
+10:00 20:00
+50
+10:00 1 sam
+10:00 1 tara
+10:00 1 quinn
+10:00 1 ghostface
+10:20 3 tara
+10:50 2 sam 1
+11:00 2 quinn 2
+11:00 2 ghostface 2
+12:00 2 rachel 3
+13:00 4 quinn
+13:00 4 ghostface
