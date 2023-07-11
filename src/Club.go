@@ -145,18 +145,16 @@ func (c *Club) processing() {
 				break
 			}
 
-			// Флаг пересадки. Если он равен true, то посетитель не пересаживается
-			// Иначе пересаживается и нужно удалить его со старого места
-			transfer := false
+			// Если посетитель пересаживается, то oldTable хранит в себе номер стола, с которого посетитель хочет пересесть
+			// Если посетитель не пересаживается, то oldTable = -1
 			oldTable := -1
 			for key, ticket := range c.tableOccupancy {
 				if ticket.name == clientName {
-					transfer = true
 					oldTable = key
 				}
 			}
 
-			if transfer {
+			if oldTable != -1 {
 				// Клиент пересаживается, подбиваем выручку за его столом и удаляем тикет
 				spentTime := eventTime.Sub(c.tableOccupancy[oldTable].startTime)
 				c.tableTimeTracker[oldTable] += spentTime
