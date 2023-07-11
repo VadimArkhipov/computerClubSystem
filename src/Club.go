@@ -11,6 +11,7 @@ import (
 
 type Club struct {
 	lines            []string              // Команды из файла
+	output           []string              // Выходная информация
 	clients          []string              // Список клиентов, которые находятся в клубе
 	waitingList      []string              // Очередь ожидания
 	cost             int                   // Стоимость часа в клубе
@@ -22,6 +23,7 @@ type Club struct {
 	proceeds         map[int]int           // Выручка с каждого стола
 }
 
+// Клиент уходит из клуба. Возвращаемое значение -- номер стола, который он освободил
 func (c *Club) clientLeave(clientName string, leavingTime time.Time) int {
 	curTable := -1
 	for key, ticket := range c.tableOccupancy {
@@ -39,7 +41,7 @@ func (c *Club) clientLeave(clientName string, leavingTime time.Time) int {
 		delete(c.tableOccupancy, curTable)
 	}
 
-	// Удаляем клиента из списка поситителей
+	// Удаляем клиента из списка посетителей
 	idx := -1
 	for i := range c.clients {
 		if c.clients[i] == clientName {
@@ -62,7 +64,7 @@ func (c *Club) clientLeave(clientName string, leavingTime time.Time) int {
 	if idx != -1 {
 		c.waitingList = append(c.waitingList[:idx], c.waitingList[idx+1:]...)
 	}
-
+	// Возвращаем номер стола, который освободил клиент. Если этот клиент не сидел за столом, то возвращаем -1
 	return curTable
 }
 
@@ -76,7 +78,7 @@ func (c *Club) isClientHere(clientName string) bool {
 	return false
 }
 
-// Заполненеие полей структуры
+// Заполнение полей структуры
 func (c *Club) init(data []string) {
 	c.lines = data
 	// Получаем информацию о количестве столов
@@ -102,10 +104,10 @@ func (c *Club) init(data []string) {
 
 // Обработка строк файла
 func (c *Club) processing() {
-	fmt.Println(c.open.Format("15:04"))
+	c.output = append(c.output, c.open.Format("15:04"))
 
 	for i := 3; i < len(c.lines); i++ {
-		fmt.Println(c.lines[i])
+		c.output = append(c.output, c.lines[i])
 
 		event := strings.Split(c.lines[i], " ")
 		eventTime, _ := time.Parse("15:04", event[0])
@@ -117,12 +119,12 @@ func (c *Club) processing() {
 		case 1:
 			// Проверяем, не заходил ли клиент в клуб ранее
 			if c.isClientHere(clientName) {
-				fmt.Println(makeEvent(eventTime, 13, "YouShallNotPass"))
+				c.output = append(c.output, makeEvent(eventTime, 13, "YouShallNotPass"))
 				break
 			}
 			// Клиент пришел не во время работы клуба
 			if eventTime.Before(c.open) || eventTime.After(c.close) {
-				fmt.Println(makeEvent(eventTime, 13, "NotOpenYet"))
+				c.output = append(c.output, makeEvent(eventTime, 13, "NotOpenYet"))
 				break
 			}
 
@@ -133,13 +135,13 @@ func (c *Club) processing() {
 
 			// Клиент на данный момент не в клубе
 			if !c.isClientHere(clientName) {
-				fmt.Println(makeEvent(eventTime, 13, "ClientUnknown"))
+				c.output = append(c.output, makeEvent(eventTime, 13, "ClientUnknown"))
 				break
 			}
 
 			// Стол, за который хочет пересесть клиент, занят
 			if _, found := c.tableOccupancy[table]; found {
-				fmt.Println(makeEvent(eventTime, 13, "PlaceIsBusy"))
+				c.output = append(c.output, makeEvent(eventTime, 13, "PlaceIsBusy"))
 				break
 			}
 
@@ -155,7 +157,7 @@ func (c *Club) processing() {
 			}
 
 			if transfer {
-				// Клиент пересаживается, подбиваем выручку и удаляем тикет
+				// Клиент пересаживается, подбиваем выручку за его столом и удаляем тикет
 				spentTime := eventTime.Sub(c.tableOccupancy[oldTable].startTime)
 				c.tableTimeTracker[oldTable] += spentTime
 				c.proceeds[oldTable] += int(math.Ceil(eventTime.Sub(c.tableOccupancy[oldTable].startTime).Hours())) * c.cost
@@ -168,18 +170,17 @@ func (c *Club) processing() {
 		case 3:
 			// Клиент на данный момент не в клубе
 			if !c.isClientHere(clientName) {
-				fmt.Println(makeEvent(eventTime, 13, "ClientUnknown"))
+				c.output = append(c.output, makeEvent(eventTime, 13, "ClientUnknown"))
 				break
 			}
 
 			if len(c.tableOccupancy) < c.tables {
-				fmt.Println(makeEvent(eventTime, 13, "ICanWaitNoLonger!"))
+				c.output = append(c.output, makeEvent(eventTime, 13, "ICanWaitNoLonger!"))
 				break
 			}
 
 			if len(c.waitingList) > c.tables {
-				// Генерируем событие 11
-				fmt.Println(makeEvent(eventTime, 11, clientName))
+				c.output = append(c.output, makeEvent(eventTime, 11, clientName))
 				c.clientLeave(clientName, eventTime)
 				break
 			}
@@ -188,7 +189,7 @@ func (c *Club) processing() {
 
 		case 4:
 			if !c.isClientHere(clientName) {
-				fmt.Println(makeEvent(eventTime, 13, "ClientUnknown"))
+				c.output = append(c.output, makeEvent(eventTime, 13, "ClientUnknown"))
 				break
 			}
 
@@ -200,28 +201,29 @@ func (c *Club) processing() {
 					client := c.waitingList[0]
 					c.waitingList = c.waitingList[1:]
 					c.tableOccupancy[freePlace] = Ticket{client, eventTime}
-					fmt.Println(makeEvent(eventTime, 12, fmt.Sprintf("%s %d", client, freePlace)))
+					c.output = append(c.output, makeEvent(eventTime, 12, fmt.Sprintf("%s %d", client, freePlace)))
 				}
 			}
 
 		}
 	}
 
-	// Сортируем оставшихся клиентов а алфавитном порядке и выдворяем их из клуба
+	// Сортируем оставшихся клиентов в алфавитном порядке и выдворяем их из клуба
 	sort.Strings(c.clients)
-	lengnt := len(c.clients)
-	for i := 0; i < lengnt; i++ {
+	length := len(c.clients)
+	for i := 0; i < length; i++ {
 		client := c.clients[0]
 		c.clientLeave(client, c.close)
-		fmt.Println(makeEvent(c.close, 11, client))
+		c.output = append(c.output, makeEvent(c.close, 11, client))
 	}
 
 	// Клуб закрывается
-	fmt.Println(c.close.Format("15:04"))
+	c.output = append(c.output, c.close.Format("15:04"))
 
 	// Выводим информацию о столах
 	for i := 1; i <= c.tables; i++ {
 		tableTime, _ := time.Parse("15:04", "00:00")
-		fmt.Printf("%d %d %s\n", i, c.proceeds[i], tableTime.Add(c.tableTimeTracker[i]).Format("15:04"))
+		tableInfo := fmt.Sprintf("%d %d %s", i, c.proceeds[i], tableTime.Add(c.tableTimeTracker[i]).Format("15:04"))
+		c.output = append(c.output, tableInfo)
 	}
 }

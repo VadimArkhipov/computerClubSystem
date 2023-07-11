@@ -6,6 +6,7 @@ import (
 	"os"
 )
 
+// Чтение файла
 func readFile(path string) []string {
 	var data []string
 	file, err := os.Open(path)
